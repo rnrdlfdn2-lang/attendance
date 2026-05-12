@@ -465,8 +465,49 @@ function mealDeduct(ds){const m=getMeals(ds);return(m.lunch?60:0)+(m.dinner?60:0
 function dayRawMins(ds){const i=dayIn(ds),o=dayOut(ds);if(!i)return 0;const end=o?new Date(o.ts):new Date();return Math.round((end-new Date(i.ts))/60000);}
 function dayWorkMins(ds){return Math.max(0,dayRawMins(ds)-mealDeduct(ds));}
 function fmtHours(mins){if(!mins)return'0h';const h=Math.floor(mins/60),m=mins%60;return m?`${h}h ${m}m`:`${h}h`;}
-function save(){localStorage.setItem('att_records_v2',JSON.stringify(records));}
+const SHEET_URL='https://script.google.com/a/macros/spaceadd.com/s/AKfycbwrZhQdfKRAt_sWLnuogPGBTO2WdqMdwZz8Akdue9X189rfFRA0edMoVHf7wdFwQd1S/exec';
+
+function save(){
+  localStorage.setItem('att_records_v2',JSON.stringify(records));
+  syncToSheet();
+}
 function saveMeals(){localStorage.setItem('att_meals_v1',JSON.stringify(meals));}
+
+function syncToSheet(){
+  try{
+    fetch(SHEET_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'save',records})
+    }).then(r=>r.json()).then(d=>{
+      if(d.result==='ok') console.log('시트 저장 완료');
+    }).catch(e=>console.log('시트 저장 실패:',e));
+  }catch(e){console.log('시트 동기화 오류:',e);}
+}
+
+function loadFromSheet(){
+  return fetch(SHEET_URL)
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.result==='ok'&&d.records&&d.records.length>0){
+        const sheetRecs=d.records
+          .filter(r=>r.ts&&r.date&&r.type)
+          .map(r=>({
+            id: new Date(r.ts).getTime(),
+            type: r.type,
+            date: r.date,
+            ts: r.ts
+          }));
+        if(sheetRecs.length>0){
+          records=sheetRecs;
+          localStorage.setItem('att_records_v2',JSON.stringify(records));
+          updateTheme();
+          renderHome();
+          showToast('✅ 구글 시트에서 기록 불러왔어요!');
+        }
+      }
+    }).catch(e=>console.log('시트 불러오기 실패:',e));
+}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
 
 // 테마 전환
@@ -813,6 +854,9 @@ checkURLAction();
 updateClock();
 setInterval(updateClock,30000);
 renderHome();
+
+// 구글 시트에서 최신 데이터 불러오기
+loadFromSheet();
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
