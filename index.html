@@ -478,7 +478,10 @@ function syncToSheet(){
     fetch(SHEET_URL,{
       method:'POST',
       headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({action:'save',records})
+      body:JSON.stringify({action:'save',records:records.map(r=>({
+        ...r,
+        originalTs: r.originalTs || r.ts  // 최초 기록 시간 보존
+      }))})
     }).then(r=>r.json()).then(d=>{
       if(d.result==='ok') console.log('시트 저장 완료');
     }).catch(e=>console.log('시트 저장 실패:',e));
@@ -555,7 +558,7 @@ function doRecord(){
   const type=hasIn?'퇴근':'출근';
   vibrate(type);
   const now=new Date();
-  records.unshift({id:Date.now(),type,date:fmtDate(now),ts:now.toISOString()});
+  records.unshift({id:Date.now(),type,date:fmtDate(now),ts:now.toISOString(),originalTs:now.toISOString()});
   save();
   updateTheme();
   renderHome();
