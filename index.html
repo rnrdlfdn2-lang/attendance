@@ -568,6 +568,8 @@ function fieldRecord(){
   save();updateTheme();renderHome();
   showToast(type==='출근'?'🚗 외근 출근 완료!':'🚗 외근 퇴근 완료! 수고하셨어요 🎉');
 }
+
+function doRecord(){
   const recs=dayRecs(todayStr());
   const hasIn=recs.some(r=>r.type==='출근'),hasOut=recs.some(r=>r.type==='퇴근');
   if(hasOut)return;
