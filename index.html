@@ -603,7 +603,8 @@ function closeConfirmDirect(){document.getElementById('confirm-modal').classList
 function confirmDelete(){
   if(deletingId===null)return;
   records=records.filter(r=>r.id!==deletingId);
-  save();updateTheme();renderHome();
+  save();
+  updateTheme();renderHome();
   if(currentTab==='cal'){renderMonth();if(selectedDay)showDayDetail(selectedDay);}
   showToast('기록이 삭제됐어요');
   closeConfirmDirect();
@@ -626,7 +627,9 @@ function saveTime(){
   if(isNaN(h)||isNaN(m)||h<0||h>23||m<0||m>59){showToast('올바른 시간을 입력해주세요');return;}
   const rec=records.find(r=>r.id===editingId);if(!rec)return;
   const d=new Date(rec.ts);d.setHours(h);d.setMinutes(m);d.setSeconds(0);
-  rec.ts=d.toISOString();save();closeModalDirect();showToast('✓ 시간이 수정됐어요');
+  rec.ts=d.toISOString();
+  save();
+  closeModalDirect();showToast('✓ 시간이 수정됐어요');
   updateTheme();renderHome();
   if(currentTab==='cal'){renderMonth();if(selectedDay)showDayDetail(selectedDay);}
 }
