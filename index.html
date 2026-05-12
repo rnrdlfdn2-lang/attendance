@@ -528,10 +528,14 @@ function checkURLAction(){
   if(params.get('action')==='auto'){
     // URL 즉시 제거
     window.history.replaceState({},'',window.location.pathname);
-    // 이미 이 세션에서 처리했으면 무시 (중복 방지)
-    const key='nfc_fired_'+new Date().toISOString().slice(0,16);
-    if(sessionStorage.getItem(key)) return;
-    sessionStorage.setItem(key,'1');
+    // 마지막 NFC 기록 시각 확인 (10초 이내면 무시)
+    const lastFired=parseInt(localStorage.getItem('nfc_last_fired')||'0');
+    const now=Date.now();
+    if(now-lastFired < 10000){
+      console.log('NFC 중복 실행 방지');
+      return;
+    }
+    localStorage.setItem('nfc_last_fired', String(now));
     window._nfcTriggered=true;
     setTimeout(()=>doRecord(),300);
   }
