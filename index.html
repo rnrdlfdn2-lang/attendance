@@ -526,10 +526,13 @@ function doRecord(){
 function checkURLAction(){
   const params=new URLSearchParams(window.location.search);
   if(params.get('action')==='auto'){
+    // URL 즉시 제거
+    window.history.replaceState({},'',window.location.pathname);
+    // 이미 이 세션에서 처리했으면 무시 (중복 방지)
+    const key='nfc_fired_'+new Date().toISOString().slice(0,16);
+    if(sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key,'1');
     window._nfcTriggered=true;
-    // URL에서 ?action=auto 즉시 제거 (새로고침 시 재실행 방지)
-    const cleanURL=window.location.pathname;
-    window.history.replaceState({},'',cleanURL);
     setTimeout(()=>doRecord(),300);
   }
 }
