@@ -525,7 +525,13 @@ function doRecord(){
 
 function checkURLAction(){
   const params=new URLSearchParams(window.location.search);
-  if(params.get('action')==='auto'){window._nfcTriggered=true;setTimeout(()=>doRecord(),300);}
+  if(params.get('action')==='auto'){
+    window._nfcTriggered=true;
+    // URL에서 ?action=auto 즉시 제거 (새로고침 시 재실행 방지)
+    const cleanURL=window.location.pathname;
+    window.history.replaceState({},'',cleanURL);
+    setTimeout(()=>doRecord(),300);
+  }
 }
 
 function toggleMeal(ds,type){
