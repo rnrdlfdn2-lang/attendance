@@ -907,9 +907,6 @@ updateClock();
 setInterval(updateClock,30000);
 renderHome();
 
-// 구글 시트에서 최신 데이터 불러오기
-loadFromSheet();
-
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('sw.js').catch(err=>console.log('SW 등록 실패:',err));
