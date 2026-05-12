@@ -429,6 +429,18 @@ body.dark .nfc-btn.done {
     </div>
   </div>
 </div>
+<!-- 삭제 확인 모달 -->
+<div class="modal-backdrop" id="confirm-modal" onclick="closeConfirm(event)">
+  <div class="modal">
+    <div class="modal-title">기록 삭제</div>
+    <div class="modal-sub" id="confirm-sub">이 기록을 삭제할까요?</div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeConfirmDirect()">아니오</button>
+      <button class="modal-btn" style="background:#e05252;color:#fff;" onclick="confirmDelete()">예, 삭제</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -525,7 +537,23 @@ function toggleMeal(ds,type){
   showToast(on?(type==='lunch'?'점심 1시간 차감':'저녁 1시간 차감'):(type==='lunch'?'점심 차감 취소':'저녁 차감 취소'));
 }
 
-function delRec(id){records=records.filter(r=>r.id!==id);save();updateTheme();renderHome();}
+let deletingId=null;
+function delRec(id){
+  const rec=records.find(r=>r.id===id);if(!rec)return;
+  deletingId=id;
+  document.getElementById('confirm-sub').textContent=`${rec.date} ${rec.type} 기록을 삭제할까요?`;
+  document.getElementById('confirm-modal').classList.add('show');
+}
+function closeConfirm(e){if(e.target===document.getElementById('confirm-modal'))closeConfirmDirect();}
+function closeConfirmDirect(){document.getElementById('confirm-modal').classList.remove('show');deletingId=null;}
+function confirmDelete(){
+  if(deletingId===null)return;
+  records=records.filter(r=>r.id!==deletingId);
+  save();updateTheme();renderHome();
+  if(currentTab==='cal'){renderMonth();if(selectedDay)showDayDetail(selectedDay);}
+  showToast('기록이 삭제됐어요');
+  closeConfirmDirect();
+}
 
 function openEditModal(id){
   const rec=records.find(r=>r.id===id);if(!rec)return;
@@ -565,14 +593,17 @@ function renderHome(){
     dot.className='sdot out2';st.innerHTML=`<strong>퇴근 완료</strong> · ${fmtTime(new Date(outRec.ts))}`;
     btn.className='nfc-btn done';icon.className='ti ti-check';lbl.textContent='오늘 완료!';hint.textContent='수고하셨어요 🎉';
     ring.className='base-ring done';waves.forEach(w=>w.className='wave hide');
+    btn.onclick=null;
   }else if(hasIn){
     dot.className='sdot in';st.innerHTML=`<strong>근무 중</strong> · 출근 ${fmtTime(new Date(inRec.ts))}`;
     btn.className='nfc-btn out';icon.className='ti ti-logout';lbl.textContent='퇴근하기';hint.textContent='스티커에 태그하세요';
     ring.className='base-ring out';waves.forEach(w=>w.className='wave out');
+    btn.onclick=startNFC;
   }else{
     dot.className='sdot';st.textContent='아직 출근 기록이 없어요';
     btn.className='nfc-btn';icon.className='ti ti-login';lbl.textContent='출근하기';hint.textContent='스티커에 태그하세요';
     ring.className='base-ring';waves.forEach(w=>w.className='wave');
+    btn.onclick=startNFC;
   }
   const m=getMeals(ds);
   document.getElementById('meal-lunch').className='meal-btn'+(m.lunch?' checked':'');
@@ -649,8 +680,8 @@ function showDayDetail(ds){
   let html=`<div class="day-detail"><div class="dd-title"><i class="ti ti-calendar-event" style="font-size:15px;vertical-align:-2px;margin-right:5px"></i>${ds}</div>`;
   if(!i&&!o)html+=`<div style="font-size:13px;color:var(--text2);padding:6px 0">출퇴근 기록이 없어요</div>`;
   else{
-    if(i)html+=`<div class="dd-row"><span class="dd-label"><span class="badge bi">출근</span></span><span class="dd-val">${fmtTime(new Date(i.ts))}<button class="icon-btn" onclick="openEditModal(${i.id})" style="font-size:14px"><i class="ti ti-pencil"></i></button></span></div>`;
-    if(o)html+=`<div class="dd-row"><span class="dd-label"><span class="badge bo">퇴근</span></span><span class="dd-val">${fmtTime(new Date(o.ts))}<button class="icon-btn" onclick="openEditModal(${o.id})" style="font-size:14px"><i class="ti ti-pencil"></i></button></span></div>`;
+    if(i)html+=`<div class="dd-row"><span class="dd-label"><span class="badge bi">출근</span></span><span class="dd-val">${fmtTime(new Date(i.ts))}<button class="icon-btn" onclick="openEditModal(${i.id})" style="font-size:14px"><i class="ti ti-pencil"></i></button><button class="icon-btn" onclick="delRec(${i.id})" style="font-size:14px;color:#e05252"><i class="ti ti-x"></i></button></span></div>`;
+    if(o)html+=`<div class="dd-row"><span class="dd-label"><span class="badge bo">퇴근</span></span><span class="dd-val">${fmtTime(new Date(o.ts))}<button class="icon-btn" onclick="openEditModal(${o.id})" style="font-size:14px"><i class="ti ti-pencil"></i></button><button class="icon-btn" onclick="delRec(${o.id})" style="font-size:14px;color:#e05252"><i class="ti ti-x"></i></button></span></div>`;
   }
   html+=`<div class="dd-row"><span class="dd-label"><i class="ti ti-soup" style="font-size:15px"></i> 점심식사</span><button class="dd-meal-toggle ${m.lunch?'toggle-on':'toggle-off'}" onclick="toggleMeal('${ds}','lunch')">${m.lunch?'차감 중 · 취소':'+ 추가 (-1h)'}</button></div>
   <div class="dd-row"><span class="dd-label"><i class="ti ti-meat" style="font-size:15px"></i> 저녁식사</span><button class="dd-meal-toggle ${m.dinner?'toggle-on':'toggle-off'}" onclick="toggleMeal('${ds}','dinner')">${m.dinner?'차감 중 · 취소':'+ 추가 (-1h)'}</button></div>`;
