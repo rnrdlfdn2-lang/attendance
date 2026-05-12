@@ -193,7 +193,7 @@ body.dark .nfc-btn.done {
 .empty i { font-size: 32px; display: block; margin-bottom: 8px; opacity: 0.3; }
 
 /* 달력 */
-.cal-panel { padding-top: 1.25rem; }
+.cal-panel { padding-top: 1.25rem; padding-bottom: 2rem; }
 .view-tabs { display: flex; gap: 6px; margin-bottom: 1.25rem; }
 .vt { background: none; border: 0.5px solid var(--border); border-radius: 10px; padding: 6px 16px; font-size: 13px; cursor: pointer; color: var(--text2); font-family: inherit; transition: background 0.3s; }
 .vt.active { background: var(--bg3); color: var(--text); border-color: var(--border2); font-weight: 500; }
@@ -219,7 +219,7 @@ body.dark .nfc-btn.done {
 .leg-box { width: 12px; height: 12px; border-radius: 3px; }
 .lb-full { background: rgba(29,185,122,0.12); border: 1px solid rgba(29,185,122,0.3); }
 .lb-partial { background: rgba(240,160,64,0.12); border: 1px solid rgba(240,160,64,0.3); }
-.day-detail { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 16px; padding: 1rem 1.25rem; margin-bottom: 1rem; transition: background 0.6s; }
+.day-detail { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 16px; padding: 1rem 1.25rem; margin-bottom: 2rem; transition: background 0.6s; }
 .dd-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 10px; }
 .dd-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 0.5px solid var(--border); }
 .dd-row:last-child { border-bottom: none; }
@@ -490,7 +490,8 @@ function syncToSheet(){
       headers:{'Content-Type':'text/plain'},
       body:JSON.stringify({action:'save',records:records.map(r=>({
         ...r,
-        originalTs: r.originalTs || r.ts  // 최초 기록 시간 보존
+        originalTs: r.originalTs || r.ts,
+        mealDeductMins: mealDeduct(r.date)
       }))})
     }).then(r=>r.json()).then(d=>{
       if(d.result==='ok') console.log('시트 저장 완료');
