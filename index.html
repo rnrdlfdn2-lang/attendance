@@ -386,6 +386,10 @@ body.dark .nfc-btn.done {
     <div class="export-panel">
       <div class="export-title">내보내기</div>
       <div class="export-desc">날짜 범위를 선택하고 엑셀 또는 PDF로 저장하세요.</div>
+
+      <button onclick="loadFromSheet()" style="width:100%;border:none;border-radius:10px;padding:14px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;background:var(--bg2);color:#4a9eff;border:1.5px solid #4a9eff;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:1.25rem;transition:transform 0.1s;" ontouchstart="" onmousedown="this.style.transform='scale(0.97)'" onmouseup="this.style.transform='scale(1)'">
+        <i class="ti ti-cloud-download"></i> 구글 시트에서 기록 불러오기
+      </button>
       <div class="range-card">
         <div class="range-label">기간 선택</div>
         <div class="range-btns">
@@ -495,6 +499,7 @@ function syncToSheet(){
 }
 
 function loadFromSheet(){
+  showToast('⏳ 구글 시트에서 불러오는 중...');
   return fetch(SHEET_URL)
     .then(r=>r.json())
     .then(d=>{
@@ -502,20 +507,27 @@ function loadFromSheet(){
         const sheetRecs=d.records
           .filter(r=>r.ts&&r.date&&r.type)
           .map(r=>({
-            id: new Date(r.ts).getTime(),
+            id: new Date(r.ts).getTime()||Date.now(),
             type: r.type,
-            date: r.date,
-            ts: r.ts
+            date: String(r.date),
+            ts: r.ts,
+            originalTs: r.ts,
+            isFieldWork: r.isField==='🚗 외근'
           }));
         if(sheetRecs.length>0){
           records=sheetRecs;
           localStorage.setItem('att_records_v2',JSON.stringify(records));
           updateTheme();
           renderHome();
-          showToast('✅ 구글 시트에서 기록 불러왔어요!');
+          showToast('✅ 구글 시트에서 기록을 복원했어요!');
         }
+      } else {
+        showToast('시트에 저장된 기록이 없어요');
       }
-    }).catch(e=>console.log('시트 불러오기 실패:',e));
+    }).catch(e=>{
+      console.log('시트 불러오기 실패:',e);
+      showToast('❌ 시트 불러오기 실패. 인터넷 확인해주세요');
+    });
 }
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
 
