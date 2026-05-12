@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>출퇴근 기록</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/dist/tabler-icons.min.css">
+<style>
+:root {
+  --bg: #0f1117;
+  --bg2: #1a1d27;
+  --bg3: #222536;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #f0f0f5;
+  --text2: #8b8fa8;
+  --green: #1db97a;
+  --green-bg: rgba(29,185,122,0.12);
+  --green-bg2: rgba(29,185,122,0.18);
+  --red: #e05252;
+  --red-bg: rgba(224,82,82,0.12);
+  --red-bg2: rgba(224,82,82,0.18);
+  --amber: #f0a040;
+  --amber-bg: rgba(240,160,64,0.12);
+  --blue: #4a9eff;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; min-height: 100vh; }
+.app { max-width: 420px; margin: 0 auto; padding-bottom: 90px; }
+.tab-bar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 420px; background: rgba(15,17,23,0.95); backdrop-filter: blur(20px); border-top: 0.5px solid var(--border); display: grid; grid-template-columns: 1fr 1fr 1fr; z-index: 50; padding-bottom: env(safe-area-inset-bottom); }
+.tab { background: none; border: none; padding: 12px 0 10px; font-size: 11px; color: var(--text2); cursor: pointer; font-family: inherit; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: color 0.15s; }
+.tab i { font-size: 22px; }
+.tab.active { color: var(--green); }
+.panel { padding: 0 1rem; display: none; }
+.panel.active { display: block; }
+.home-header { padding: 3rem 0 1.5rem; text-align: center; }
+.home-date { font-size: 13px; color: var(--text2); margin-bottom: 4px; }
+.home-time { font-size: 36px; font-weight: 700; letter-spacing: -1px; }
+.nfc-wrap { display: flex; flex-direction: column; align-items: center; margin: 0.5rem 0 1.25rem; }
+.nfc-label { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--blue); margin-bottom: 1.25rem; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+.nfc-label i { font-size: 14px; }
+.btn-area { position: relative; width: 260px; height: 260px; display: flex; align-items: center; justify-content: center; }
+.base-ring { position: absolute; width: 170px; height: 170px; border-radius: 50%; background: var(--green-bg); border: 1.5px solid rgba(29,185,122,0.2); transition: background 0.4s, border-color 0.4s; }
+.base-ring.out { background: var(--red-bg); border-color: rgba(224,82,82,0.2); }
+.base-ring.done { background: rgba(255,255,255,0.04); border-color: var(--border); }
+.wave { position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid var(--green); opacity: 0; animation: wave 6s ease-out infinite; }
+.wave:nth-child(2) { animation-delay: 2s; }
+.wave:nth-child(3) { animation-delay: 4s; }
+@keyframes wave { 0% { transform: scale(0.52); opacity: 0.55; } 100% { transform: scale(1.0); opacity: 0; } }
+.wave.out { border-color: var(--red); }
+.wave.hide { display: none; }
+.nfc-btn { width: 130px; height: 130px; border-radius: 50%; background: var(--green-bg2); border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; z-index: 2; position: relative; transition: transform 0.12s, background 0.3s; }
+.nfc-btn:active { transform: scale(0.95); }
+.nfc-btn i { font-size: 38px; color: var(--green); }
+.nfc-btn .lbl { font-size: 15px; font-weight: 600; color: var(--green); font-family: inherit; }
+.nfc-btn .hint { font-size: 10px; color: var(--green); opacity: 0.7; font-family: inherit; }
+.nfc-btn.out { background: var(--red-bg2); }
+.nfc-btn.out i { color: var(--red); }
+.nfc-btn.out .lbl { color: var(--red); }
+.nfc-btn.out .hint { color: var(--red); }
+.nfc-btn.done { background: rgba(255,255,255,0.05); cursor: default; }
+.nfc-btn.done i { color: var(--text2); }
+.nfc-btn.done .lbl { color: var(--text2); }
+.nfc-btn.done .hint { color: var(--text2); }
+.nfc-scanning { display: none; align-items: center; gap: 8px; color: var(--blue); font-size: 13px; margin-top: 14px; }
+.nfc-scanning.show { display: flex; }
+.pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.3;transform:scale(0.6)} }
+.status-bar { background: var(--bg2); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 12px; border: 0.5px solid var(--border); }
+.sdot { width: 8px; height: 8px; border-radius: 50%; background: var(--text2); flex-shrink: 0; transition: background 0.3s; }
+.sdot.in { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.sdot.out2 { background: var(--red); }
+.stext { font-size: 14px; color: var(--text2); }
+.stext strong { color: var(--text); font-weight: 500; }
+.meal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
+.meal-btn { border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: .875rem 1rem; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 8px; background: var(--bg2); transition: transform 0.1s; }
+.meal-btn:active { transform: scale(0.97); }
+.meal-btn.checked { background: var(--amber-bg); border-color: rgba(240,160,64,0.35); }
+.meal-btn i { font-size: 20px; color: var(--text2); }
+.meal-btn.checked i { color: var(--amber); }
+.meal-info { display: flex; flex-direction: column; gap: 1px; }
+.meal-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.meal-btn.checked .meal-name { color: var(--amber); }
+.meal-sub { font-size: 11px; color: var(--text2); }
+.summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1.25rem; }
+.stat { background: var(--bg2); border-radius: var(--radius-sm); padding: .875rem 1rem; border: 0.5px solid var(--border); }
+.stat-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+.stat-value { font-size: 20px; font-weight: 600; }
+.stat-sub { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.sec-title { font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 8px; letter-spacing: 0.06em; text-transform: uppercase; }
+.records { display: flex; flex-direction: column; gap: 6px; }
+.rec { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: .75rem 1rem; display: flex; align-items: center; justify-content: space-between; }
+.rec-l { display: flex; align-items: center; gap: 9px; }
+.badge { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 99px; }
+.bi { background: var(--green-bg); color: var(--green); }
+.bo { background: var(--red-bg); color: var(--red); }
+.bm { background: var(--amber-bg); color: var(--amber); }
+.rec-time { font-size: 14px; font-weight: 500; }
+.rec-actions { display: flex; align-items: center; gap: 2px; }
+.icon-btn { background: none; border: none; cursor: pointer; color: var(--text2); font-size: 16px; padding: 5px; border-radius: 6px; }
+.empty { text-align: center; padding: 2.5rem 1rem; color: var(--text2); font-size: 14px; line-height: 1.8; }
+.empty i { font-size: 32px; display: block; margin-bottom: 8px; opacity: 0.3; }
+.cal-panel { padding-top: 1.25rem; }
+.view-tabs { display: flex; gap: 6px; margin-bottom: 1.25rem; }
+.vt { background: none; border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 6px 16px; font-size: 13px; cursor: pointer; color: var(--text2); font-family: inherit; }
+.vt.active { background: var(--bg3); color: var(--text); border-color: var(--border2); font-weight: 500; }
+.cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.cal-nav button { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 7px 12px; cursor: pointer; color: var(--text2); font-size: 15px; }
+.cal-title { font-size: 17px; font-weight: 600; }
+.cal-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 3px; margin-bottom: 1rem; }
+.cal-dow { font-size: 11px; color: var(--text2); text-align: center; padding: 4px 0; font-weight: 500; }
+.cal-dow.sun { color: var(--red); }
+.cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 10px; font-size: 13px; color: var(--text2); cursor: pointer; gap: 2px; }
+.cal-day.has-rec { background: var(--green-bg); color: var(--green); font-weight: 600; }
+.cal-day.partial { background: var(--amber-bg); color: var(--amber); font-weight: 600; }
+.cal-day.today-cell { outline: 2px solid var(--green); outline-offset: -2px; }
+.cal-day.other-month { opacity: 0.2; }
+.cal-day.sunday { color: var(--red); }
+.cal-day.selected-day { outline: 2px solid var(--blue); outline-offset: -2px; }
+.dot-row { display: flex; gap: 2px; }
+.dot { width: 4px; height: 4px; border-radius: 50%; }
+.dot-in { background: var(--green); } .dot-out { background: var(--red); } .dot-meal { background: var(--amber); }
+.cal-legend { display: flex; gap: 14px; margin-bottom: 1rem; flex-wrap: wrap; }
+.leg { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text2); }
+.leg-box { width: 12px; height: 12px; border-radius: 3px; }
+.lb-full { background: var(--green-bg); border: 1px solid rgba(29,185,122,0.3); }
+.lb-partial { background: var(--amber-bg); border: 1px solid rgba(240,160,64,0.3); }
+.day-detail { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+.dd-title { font-size: 14px; font-weight: 500; margin-bottom: 10px; }
+.dd-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 0.5px solid var(--border); }
+.dd-row:last-child { border-bottom: none; }
+.dd-label { font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 6px; }
+.dd-val { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.dd-meal-toggle { border: none; border-radius: 99px; padding: 4px 12px; font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer; }
+.toggle-off { background: var(--bg3); color: var(--text2); border: 0.5px solid var(--border); }
+.toggle-on { background: var(--amber-bg); color: var(--amber); border: 0.5px solid rgba(240,160,64,0.35); }
+.work-summary { background: var(--bg3); border-radius: var(--radius-sm); padding: 9px 12px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; }
+.ws-label { font-size: 12px; color: var(--text2); }
+.ws-val { font-size: 15px; font-weight: 600; }
+.month-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+.month-card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: .875rem 1rem; }
+.month-card.has-data { border-color: rgba(29,185,122,0.25); }
+.mc-name { font-size: 13px; color: var(--text2); margin-bottom: 4px; }
+.mc-days { font-size: 20px; font-weight: 600; }
+.mc-hours { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.export-panel { padding-top: 1.25rem; }
+.export-title { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+.export-desc { font-size: 13px; color: var(--text2); margin-bottom: 1.25rem; line-height: 1.6; }
+.range-card { background: var(--bg2); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; border: 0.5px solid var(--border); }
+.range-label { font-size: 11px; color: var(--text2); margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.range-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem; }
+.range-btn { background: none; border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 7px 14px; font-size: 13px; cursor: pointer; color: var(--text2); font-family: inherit; }
+.range-btn.active { background: var(--bg3); color: var(--text); border-color: var(--border2); font-weight: 500; }
+.date-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.date-input-wrap label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 4px; }
+.date-input { border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 9px 10px; font-size: 13px; font-family: inherit; color: var(--text); background: var(--bg3); width: 100%; outline: none; }
+.preview-box { background: var(--bg2); border-radius: var(--radius-sm); padding: .875rem 1rem; margin-bottom: 1rem; border: 0.5px solid var(--border); }
+.preview-label { font-size: 11px; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.04em; }
+.preview-stat { font-size: 15px; font-weight: 600; }
+.preview-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.export-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.export-btn { border: none; border-radius: var(--radius-sm); padding: 15px 1rem; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.1s; }
+.export-btn:active { transform: scale(0.97); }
+.btn-excel { background: #1a7f42; color: #fff; }
+.btn-pdf { background: #c5280c; color: #fff; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 100; display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+.modal-backdrop.show { opacity: 1; pointer-events: all; }
+.modal { background: var(--bg2); border-radius: 24px 24px 0 0; padding: 1.5rem 1.25rem calc(2rem + env(safe-area-inset-bottom)); width: 100%; max-width: 420px; transform: translateY(100%); transition: transform 0.25s ease; border-top: 0.5px solid var(--border); }
+.modal-backdrop.show .modal { transform: translateY(0); }
+.modal-title { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+.modal-sub { font-size: 13px; color: var(--text2); margin-bottom: 1.25rem; }
+.time-input-row { display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem; }
+.time-input-row label { font-size: 13px; color: var(--text2); }
+.time-input { flex: 1; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); padding: 12px; font-size: 26px; font-weight: 600; font-family: inherit; color: var(--text); background: var(--bg3); text-align: center; outline: none; }
+.time-input:focus { border-color: var(--blue); }
+.colon { font-size: 26px; font-weight: 600; color: var(--text2); }
+.modal-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.modal-btn { border: none; border-radius: var(--radius-sm); padding: 13px; font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; }
+.modal-btn.cancel { background: var(--bg3); color: var(--text2); }
+.modal-btn.confirm { background: var(--green); color: #fff; }
+.toast { position: fixed; bottom: calc(80px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%) translateY(20px); background: rgba(30,33,48,0.96); backdrop-filter: blur(16px); color: var(--text); font-size: 13px; padding: 10px 20px; border-radius: 99px; white-space: nowrap; transition: transform 0.25s, opacity 0.25s; pointer-events: none; z-index: 200; opacity: 0; border: 0.5px solid var(--border2); }
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="panel active" id="panel-home">
+    <div class="home-header">
+      <div class="home-date" id="date-label"></div>
+      <div class="home-time" id="time-now"></div>
+    </div>
+    <div class="nfc-wrap">
+      <div class="nfc-label"><i class="ti ti-nfc"></i> NFC 태그로 기록</div>
+      <div class="btn-area">
+        <div class="wave" id="w1"></div>
+        <div class="wave" id="w2"></div>
+        <div class="wave" id="w3"></div>
+        <div class="base-ring" id="base-ring"></div>
+        <button class="nfc-btn" id="nfc-btn" onclick="startNFC()">
+          <i class="ti ti-login" id="btn-icon"></i>
+          <span class="lbl" id="btn-label">출근하기</span>
+          <span class="hint" id="btn-hint">스티커에 태그하세요</span>
+        </button>
+      </div>
+      <div class="nfc-scanning" id="nfc-scanning">
+        <div class="pulse"></div>NFC 스캔 중...
+      </div>
+    </div>
+    <div style="padding: 0;">
+      <div class="status-bar">
+        <div class="sdot" id="sdot"></div>
+        <div class="stext" id="stext">아직 출근 기록이 없어요</div>
+      </div>
+      <div class="meal-row">
+        <button class="meal-btn" id="meal-lunch" onclick="toggleMeal(todayStr(),'lunch')">
+          <i class="ti ti-soup"></i>
+          <div class="meal-info"><span class="meal-name">점심식사</span><span class="meal-sub" id="lunch-sub">-1시간</span></div>
+        </button>
+        <button class="meal-btn" id="meal-dinner" onclick="toggleMeal(todayStr(),'dinner')">
+          <i class="ti ti-meat"></i>
+          <div class="meal-info"><span class="meal-name">저녁식사</span><span class="meal-sub" id="dinner-sub">-1시간</span></div>
+        </button>
+      </div>
+      <div class="summary">
+        <div class="stat"><div class="stat-label">실 근무시간</div><div class="stat-value" id="stat-hours">-</div><div class="stat-sub" id="stat-sub"></div></div>
+        <div class="stat"><div class="stat-label">이번 달 출근일</div><div class="stat-value" id="stat-days">0일</div></div>
+      </div>
+      <div class="sec-title">오늘 기록</div>
+      <div class="records" id="rec-list"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-cal">
+    <div class="cal-panel">
+      <div class="view-tabs">
+        <button class="vt active" onclick="setView('month')" id="vt-month">월별</button>
+        <button class="vt" onclick="setView('week')" id="vt-week">주별</button>
+        <button class="vt" onclick="setView('year')" id="vt-year">연간</button>
+      </div>
+      <div id="view-month">
+        <div class="cal-nav">
+          <button onclick="moveMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+          <span class="cal-title" id="cal-month-title"></span>
+          <button onclick="moveMonth(1)"><i class="ti ti-chevron-right"></i></button>
+        </div>
+        <div class="cal-stats">
+          <div class="stat"><div class="stat-label">출근일</div><div class="stat-value" id="ms-days">0일</div></div>
+          <div class="stat"><div class="stat-label">총 실근무</div><div class="stat-value" id="ms-hours">0h</div></div>
+        </div>
+        <div class="cal-legend">
+          <div class="leg"><div class="leg-box lb-full"></div>출퇴근 완료</div>
+          <div class="leg"><div class="leg-box lb-partial"></div>출근만</div>
+          <div class="leg"><div class="dot dot-meal" style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:2px"></div>식사</div>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div id="day-detail"></div>
+      </div>
+      <div id="view-week" style="display:none;">
+        <div class="cal-nav">
+          <button onclick="moveWeek(-1)"><i class="ti ti-chevron-left"></i></button>
+          <span class="cal-title" id="cal-week-title"></span>
+          <button onclick="moveWeek(1)"><i class="ti ti-chevron-right"></i></button>
+        </div>
+        <div class="cal-stats">
+          <div class="stat"><div class="stat-label">이번 주 출근일</div><div class="stat-value" id="ws-days">0일</div></div>
+          <div class="stat"><div class="stat-label">주 실근무</div><div class="stat-value" id="ws-hours">0h</div></div>
+        </div>
+        <div class="records" id="week-list"></div>
+      </div>
+      <div id="view-year" style="display:none;">
+        <div class="cal-nav">
+          <button onclick="moveYear(-1)"><i class="ti ti-chevron-left"></i></button>
+          <span class="cal-title" id="cal-year-title"></span>
+          <button onclick="moveYear(1)"><i class="ti ti-chevron-right"></i></button>
+        </div>
+        <div class="cal-stats">
+          <div class="stat"><div class="stat-label">연간 출근일</div><div class="stat-value" id="ys-days">0일</div></div>
+          <div class="stat"><div class="stat-label">연간 실근무</div><div class="stat-value" id="ys-hours">0h</div></div>
+        </div>
+        <div class="month-grid" id="year-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-export">
+    <div class="export-panel">
+      <div class="export-title">내보내기</div>
+      <div class="export-desc">날짜 범위를 선택하고 엑셀 또는 PDF로 저장하세요.</div>
+      <div class="range-card">
+        <div class="range-label">기간 선택</div>
+        <div class="range-btns">
+          <button class="range-btn active" onclick="setRange('week')" id="rb-week">이번 주</button>
+          <button class="range-btn" onclick="setRange('month')" id="rb-month">이번 달</button>
+          <button class="range-btn" onclick="setRange('3month')" id="rb-3month">최근 3개월</button>
+          <button class="range-btn" onclick="setRange('custom')" id="rb-custom">직접 입력</button>
+        </div>
+        <div class="date-inputs" id="custom-dates" style="display:none;">
+          <div class="date-input-wrap"><label>시작일</label><input class="date-input" type="date" id="date-from" onchange="updatePreview()"></div>
+          <div class="date-input-wrap"><label>종료일</label><input class="date-input" type="date" id="date-to" onchange="updatePreview()"></div>
+        </div>
+      </div>
+      <div class="preview-box">
+        <div class="preview-label">선택된 기간 요약</div>
+        <div class="preview-stat" id="preview-stat">-</div>
+        <div class="preview-sub" id="preview-sub"></div>
+      </div>
+      <div class="export-btns">
+        <button class="export-btn btn-excel" onclick="exportCSV()"><i class="ti ti-table"></i> 엑셀 (.csv)</button>
+        <button class="export-btn btn-pdf" onclick="exportPDF()"><i class="ti ti-file-type-pdf"></i> PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('home')" id="tab-home"><i class="ti ti-home"></i>기록</button>
+    <button class="tab" onclick="switchTab('cal')" id="tab-cal"><i class="ti ti-calendar"></i>달력</button>
+    <button class="tab" onclick="switchTab('export')" id="tab-export"><i class="ti ti-download"></i>내보내기</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">시간 수정</div>
+    <div class="modal-sub" id="modal-sub"></div>
+    <div class="time-input-row">
+      <label>시</label>
+      <input class="time-input" id="input-h" type="number" min="0" max="23" placeholder="09">
+      <span class="colon">:</span>
+      <input class="time-input" id="input-m" type="number" min="0" max="59" placeholder="00">
+      <label>분</label>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeModalDirect()">취소</button>
+      <button class="modal-btn confirm" onclick="saveTime()">저장</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let records=JSON.parse(localStorage.getItem('att_records_v2')||'[]');
+let meals=JSON.parse(localStorage.getItem('att_meals_v1')||'{}');
+let currentTab='home',calView='month',calYear=new Date().getFullYear(),calMonth=new Date().getMonth();
+let calWeekStart=getWeekStart(new Date()),calYearNav=new Date().getFullYear();
+let selectedDay=null,editingId=null,exportRange='week',exportFrom=null,exportTo=null,nfcController=null;
+
+function pad(n){return String(n).padStart(2,'0');}
+function fmtDate(d){return `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())}`;}
+function fmtTime(d){let h=d.getHours(),m=d.getMinutes();return `${h<12?'오전':'오후'} ${h%12||12}:${pad(m)}`;}
+function fmtTime24(d){return `${pad(d.getHours())}:${pad(d.getMinutes())}`;}
+function fmtDay(d){return['일','월','화','수','목','금','토'][d.getDay()];}
+function todayStr(){return fmtDate(new Date());}
+function getWeekStart(d){let dt=new Date(d);dt.setHours(0,0,0,0);dt.setDate(dt.getDate()-dt.getDay());return dt;}
+function dayRecs(ds){return records.filter(r=>r.date===ds);}
+function dayIn(ds){return dayRecs(ds).find(r=>r.type==='출근');}
+function dayOut(ds){return dayRecs(ds).find(r=>r.type==='퇴근');}
+function getMeals(ds){return meals[ds]||{lunch:false,dinner:false};}
+function mealDeduct(ds){const m=getMeals(ds);return(m.lunch?60:0)+(m.dinner?60:0);}
+function dayRawMins(ds){const i=dayIn(ds),o=dayOut(ds);if(!i)return 0;const end=o?new Date(o.ts):new Date();return Math.round((end-new Date(i.ts))/60000);}
+function dayWorkMins(ds){return Math.max(0,dayRawMins(ds)-mealDeduct(ds));}
+function fmtHours(mins){if(!mins)return'0h';const h=Math.floor(mins/60),m=mins%60;return m?`${h}h ${m}m`:`${h}h`;}
+function save(){localStorage.setItem('att_records_v2',JSON.stringify(records));}
+function saveMeals(){localStorage.setItem('att_meals_v1',JSON.stringify(meals));}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
+
+function vibrate(type){
+  if(!navigator.vibrate)return;
+  if(type==='출근')navigator.vibrate([60,40,60]);
+  else if(type==='퇴근')navigator.vibrate([80,40,80,40,80]);
+}
+
+async function startNFC(){
+  const recs=dayRecs(todayStr());
+  if(recs.some(r=>r.type==='퇴근')){showToast('오늘 출퇴근이 모두 기록됐어요');return;}
+  if(window._nfcTriggered){doRecord();return;}
+  if(!('NDEFReader' in window)){showToast('NFC를 지원하지 않는 브라우저예요 (Chrome 필요)');return;}
+  try{
+    const ndef=new NDEFReader();
+    nfcController=new AbortController();
+    document.getElementById('nfc-scanning').classList.add('show');
+    document.getElementById('btn-hint').textContent='스캔 중...';
+    showToast('📡 NFC 스티커를 뒤에 갖다 대세요');
+    await ndef.scan({signal:nfcController.signal});
+    ndef.onreading=()=>{nfcController.abort();document.getElementById('nfc-scanning').classList.remove('show');doRecord();};
+    setTimeout(()=>{if(nfcController){nfcController.abort();document.getElementById('nfc-scanning').classList.remove('show');document.getElementById('btn-hint').textContent='스티커에 태그하세요';showToast('NFC 스캔이 취소됐어요');}},10000);
+  }catch(e){document.getElementById('nfc-scanning').classList.remove('show');showToast('NFC 권한이 필요해요. 브라우저 설정을 확인하세요');}
+}
+
+function doRecord(){
+  const recs=dayRecs(todayStr());
+  const hasIn=recs.some(r=>r.type==='출근'),hasOut=recs.some(r=>r.type==='퇴근');
+  if(hasOut)return;
+  const type=hasIn?'퇴근':'출근';
+  vibrate(type);
+  const now=new Date();
+  records.unshift({id:Date.now(),type,date:fmtDate(now),ts:now.toISOString()});
+  save();renderHome();
+  showToast(type==='출근'?'✅ 출근 완료!':'✅ 퇴근 완료! 수고하셨어요 🎉');
+  document.getElementById('btn-hint').textContent='스티커에 태그하세요';
+  window._nfcTriggered=false;
+}
+
+function checkURLAction(){
+  const params=new URLSearchParams(window.location.search);
+  if(params.get('action')==='auto'){window._nfcTriggered=true;setTimeout(()=>doRecord(),300);}
+}
+
+function toggleMeal(ds,type){
+  if(!meals[ds])meals[ds]={lunch:false,dinner:false};
+  meals[ds][type]=!meals[ds][type];saveMeals();
+  if(ds===todayStr())renderHome();
+  if(currentTab==='cal'){renderMonth();if(selectedDay===ds)showDayDetail(ds);}
+  const on=meals[ds][type];
+  showToast(on?(type==='lunch'?'점심 1시간 차감':'저녁 1시간 차감'):(type==='lunch'?'점심 차감 취소':'저녁 차감 취소'));
+}
+
+function delRec(id){records=records.filter(r=>r.id!==id);save();renderHome();}
+
+function openEditModal(id){
+  const rec=records.find(r=>r.id===id);if(!rec)return;
+  editingId=id;const d=new Date(rec.ts);
+  document.getElementById('modal-title').textContent=rec.type+' 시간 수정';
+  document.getElementById('modal-sub').textContent=rec.date+' · 현재 '+fmtTime(d);
+  document.getElementById('input-h').value=d.getHours();
+  document.getElementById('input-m').value=d.getMinutes();
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal(e){if(e.target===document.getElementById('modal'))closeModalDirect();}
+function closeModalDirect(){document.getElementById('modal').classList.remove('show');editingId=null;}
+function saveTime(){
+  if(editingId===null)return;
+  const h=parseInt(document.getElementById('input-h').value),m=parseInt(document.getElementById('input-m').value);
+  if(isNaN(h)||isNaN(m)||h<0||h>23||m<0||m>59){showToast('올바른 시간을 입력해주세요');return;}
+  const rec=records.find(r=>r.id===editingId);if(!rec)return;
+  const d=new Date(rec.ts);d.setHours(h);d.setMinutes(m);d.setSeconds(0);
+  rec.ts=d.toISOString();save();closeModalDirect();showToast('✓ 시간이 수정됐어요');
+  renderHome();if(currentTab==='cal'){renderMonth();if(selectedDay)showDayDetail(selectedDay);}
+}
+
+function renderHome(){
+  const now=new Date();
+  document.getElementById('date-label').textContent=`${fmtDate(now)} (${fmtDay(now)})`;
+  document.getElementById('time-now').textContent=fmtTime(now);
+  const ds=todayStr(),recs=dayRecs(ds);
+  const hasIn=recs.some(r=>r.type==='출근'),hasOut=recs.some(r=>r.type==='퇴근');
+  const inRec=recs.find(r=>r.type==='출근'),outRec=recs.find(r=>r.type==='퇴근');
+  const btn=document.getElementById('nfc-btn'),icon=document.getElementById('btn-icon');
+  const lbl=document.getElementById('btn-label'),hint=document.getElementById('btn-hint');
+  const ring=document.getElementById('base-ring');
+  const waves=[document.getElementById('w1'),document.getElementById('w2'),document.getElementById('w3')];
+  const dot=document.getElementById('sdot'),st=document.getElementById('stext');
+  if(hasOut){
+    dot.className='sdot out2';st.innerHTML=`<strong>퇴근 완료</strong> · ${fmtTime(new Date(outRec.ts))}`;
+    btn.className='nfc-btn done';icon.className='ti ti-check';lbl.textContent='오늘 완료!';hint.textContent='수고하셨어요 🎉';
+    ring.className='base-ring done';waves.forEach(w=>w.className='wave hide');
+  }else if(hasIn){
+    dot.className='sdot in';st.innerHTML=`<strong>근무 중</strong> · 출근 ${fmtTime(new Date(inRec.ts))}`;
+    btn.className='nfc-btn out';icon.className='ti ti-logout';lbl.textContent='퇴근하기';hint.textContent='스티커에 태그하세요';
+    ring.className='base-ring out';waves.forEach(w=>w.className='wave out');
+  }else{
+    dot.className='sdot';st.textContent='아직 출근 기록이 없어요';
+    btn.className='nfc-btn';icon.className='ti ti-login';lbl.textContent='출근하기';hint.textContent='스티커에 태그하세요';
+    ring.className='base-ring';waves.forEach(w=>w.className='wave');
+  }
+  const m=getMeals(ds);
+  document.getElementById('meal-lunch').className='meal-btn'+(m.lunch?' checked':'');
+  document.getElementById('meal-dinner').className='meal-btn'+(m.dinner?' checked':'');
+  document.getElementById('lunch-sub').textContent=m.lunch?'차감됨':'-1시간';
+  document.getElementById('dinner-sub').textContent=m.dinner?'차감됨':'-1시간';
+  const deduct=mealDeduct(ds);
+  document.getElementById('stat-hours').textContent=hasIn?(fmtHours(dayWorkMins(ds))+(hasOut?'':' ▸')):'-';
+  document.getElementById('stat-sub').textContent=hasIn&&deduct?`식사 ${fmtHours(deduct)} 제외`:'';
+  const ym=`${now.getFullYear()}.${pad(now.getMonth()+1)}`;
+  const days=new Set(records.filter(r=>r.type==='출근'&&r.date.startsWith(ym)).map(r=>r.date)).size;
+  document.getElementById('stat-days').textContent=`${days}일`;
+  const todayAll=[...recs].reverse(),list=document.getElementById('rec-list');
+  const mealItems=[];
+  if(m.lunch)mealItems.push('점심식사 (-1h)');
+  if(m.dinner)mealItems.push('저녁식사 (-1h)');
+  if(!todayAll.length&&!mealItems.length){list.innerHTML='<div class="empty"><i class="ti ti-nfc"></i>NFC 스티커를 태그해서<br>첫 기록을 남겨보세요</div>';return;}
+  list.innerHTML=[
+    ...todayAll.map(r=>`<div class="rec"><div class="rec-l"><span class="badge ${r.type==='출근'?'bi':'bo'}">${r.type}</span><span class="rec-time">${fmtTime(new Date(r.ts))}</span></div><div class="rec-actions"><button class="icon-btn" onclick="openEditModal(${r.id})"><i class="ti ti-pencil"></i></button><button class="icon-btn" onclick="delRec(${r.id})"><i class="ti ti-x"></i></button></div></div>`),
+    ...mealItems.map(label=>`<div class="rec"><div class="rec-l"><span class="badge bm">${label}</span></div><span style="font-size:12px;color:var(--text2)">1시간 차감</span></div>`)
+  ].join('');
+}
+
+function switchTab(t){
+  currentTab=t;
+  ['home','cal','export'].forEach(x=>{
+    document.getElementById('panel-'+x).className='panel'+(x===t?' active':'');
+    document.getElementById('tab-'+x).className='tab'+(x===t?' active':'');
+  });
+  if(t==='cal')renderCal();
+  if(t==='export')setRange('week');
+}
+
+function setView(v){
+  calView=v;
+  ['month','week','year'].forEach(x=>{document.getElementById('view-'+x).style.display=x===v?'block':'none';document.getElementById('vt-'+x).className='vt'+(x===v?' active':'');});
+  renderCal();
+}
+function renderCal(){if(calView==='month')renderMonth();else if(calView==='week')renderWeek();else renderYear();}
+function moveMonth(d){calMonth+=d;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}selectedDay=null;renderMonth();}
+function moveWeek(d){calWeekStart=new Date(calWeekStart);calWeekStart.setDate(calWeekStart.getDate()+d*7);renderWeek();}
+function moveYear(d){calYearNav+=d;renderYear();}
+
+function renderMonth(){
+  const months=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  document.getElementById('cal-month-title').textContent=`${calYear}년 ${months[calMonth]}`;
+  const ym=`${calYear}.${pad(calMonth+1)}`;
+  const daySet=new Set(records.filter(r=>r.type==='출근'&&r.date.startsWith(ym)).map(r=>r.date));
+  const totalMins=Array.from(daySet).reduce((s,d)=>s+dayWorkMins(d),0);
+  document.getElementById('ms-days').textContent=`${daySet.size}일`;
+  document.getElementById('ms-hours').textContent=fmtHours(totalMins);
+  const first=new Date(calYear,calMonth,1),lastDay=new Date(calYear,calMonth+1,0).getDate(),today=todayStr();
+  const dows=['일','월','화','수','목','금','토'];
+  let html=dows.map((d,i)=>`<div class="cal-dow${i===0?' sun':''}">${d}</div>`).join('');
+  for(let i=0;i<first.getDay();i++)html+=`<div class="cal-day other-month"></div>`;
+  for(let d=1;d<=lastDay;d++){
+    const ds=`${calYear}.${pad(calMonth+1)}.${pad(d)}`;
+    const hasI=!!dayIn(ds),hasO=!!dayOut(ds),m=getMeals(ds),hasMeal=m.lunch||m.dinner;
+    const isToday=ds===today,isSel=ds===selectedDay,dow=new Date(calYear,calMonth,d).getDay();
+    let cls='cal-day';
+    if(hasI&&hasO)cls+=' has-rec';else if(hasI)cls+=' partial';
+    if(isToday)cls+=' today-cell';if(isSel)cls+=' selected-day';if(dow===0&&!hasI)cls+=' sunday';
+    const dots=(hasI||hasO||hasMeal)?`<div class="dot-row">${hasI?'<div class="dot dot-in"></div>':''}${hasO?'<div class="dot dot-out"></div>':''}${hasMeal?'<div class="dot dot-meal"></div>':''}</div>`:'';
+    html+=`<div class="${cls}" onclick="selectDay('${ds}')">${d}${dots}</div>`;
+  }
+  document.getElementById('cal-grid').innerHTML=html;
+  if(selectedDay)showDayDetail(selectedDay);else document.getElementById('day-detail').innerHTML='';
+}
+
+function selectDay(ds){selectedDay=selectedDay===ds?null:ds;renderMonth();}
+function showDayDetail(ds){
+  const i=dayIn(ds),o=dayOut(ds),m=getMeals(ds);
+  const deduct=mealDeduct(ds),workMins=Math.max(0,dayRawMins(ds)-deduct);
+  let html=`<div class="day-detail"><div class="dd-title"><i class="ti ti-calendar-event" style="font-size:15px;vertical-align:-2px;margin-right:5px"></i>${ds}</div>`;
+  if(!i&&!o)html+=`<div style="font-size:13px;color:var(--text2);padding:6px 0">출퇴근 기록이 없어요</div>`;
+  else{
+    if(i)html+=`<div class="dd-row"><span class="dd-label"><span class="badge bi">출근</span></span><span class="dd-val">${fmtTime(new Date(i.ts))}<button class="icon-btn" onclick="openEditModal(${i.id})" style="font-size:14px"><i class="ti ti-pencil"></i></button></span></div>`;
+    if(o)html+=`<div class="dd-row"><span class="dd-label"><span class="badge bo">퇴근</span></span><span class="dd-val">${fmtTime(new Date(o.ts))}<button class="icon-btn" onclick="openEditModal(${o.id})" style="font-size:14px"><i class="ti ti-pencil"></i></button></span></div>`;
+  }
+  html+=`<div class="dd-row"><span class="dd-label"><i class="ti ti-soup" style="font-size:15px"></i> 점심식사</span><button class="dd-meal-toggle ${m.lunch?'toggle-on':'toggle-off'}" onclick="toggleMeal('${ds}','lunch')">${m.lunch?'차감 중 · 취소':'+ 추가 (-1h)'}</button></div>
+  <div class="dd-row"><span class="dd-label"><i class="ti ti-meat" style="font-size:15px"></i> 저녁식사</span><button class="dd-meal-toggle ${m.dinner?'toggle-on':'toggle-off'}" onclick="toggleMeal('${ds}','dinner')">${m.dinner?'차감 중 · 취소':'+ 추가 (-1h)'}</button></div>`;
+  if(i)html+=`<div class="work-summary"><span class="ws-label">실 근무시간${deduct?` (식사 ${fmtHours(deduct)} 제외)`:''}</span><span class="ws-val">${fmtHours(workMins)}</span></div>`;
+  html+=`</div>`;
+  document.getElementById('day-detail').innerHTML=html;
+}
+
+function renderWeek(){
+  const ws=calWeekStart,we=new Date(ws);we.setDate(we.getDate()+6);
+  document.getElementById('cal-week-title').textContent=`${fmtDate(ws).slice(5)} ~ ${pad(we.getDate())}일`;
+  let totalDays=0,totalMins=0,html='';
+  for(let i=0;i<7;i++){
+    const d=new Date(ws);d.setDate(ws.getDate()+i);
+    const ds=fmtDate(d),dow=['일','월','화','수','목','금','토'][d.getDay()];
+    const hasI=!!dayIn(ds),hasO=!!dayOut(ds),m=getMeals(ds);
+    if(hasI){totalDays++;totalMins+=dayWorkMins(ds);}
+    const mealTags=[m.lunch?'<span class="badge bm">점심</span>':'',m.dinner?'<span class="badge bm">저녁</span>':''].filter(Boolean).join('');
+    html+=`<div class="rec" style="${ds===todayStr()?'outline:1.5px solid var(--green);outline-offset:-1.5px;':''}"><div class="rec-l" style="flex:1;flex-wrap:wrap;gap:5px"><span style="font-size:13px;color:${d.getDay()===0?'var(--red)':'var(--text2)'};min-width:22px">${dow}</span><span style="font-size:13px;color:var(--text2)">${pad(d.getMonth()+1)}.${pad(d.getDate())}</span>${hasI?`<span class="badge bi">출근 ${fmtTime(new Date(dayIn(ds).ts))}</span>`:''}${hasO?`<span class="badge bo">퇴근 ${fmtTime(new Date(dayOut(ds).ts))}</span>`:''}${mealTags}${!hasI&&!hasO?`<span style="font-size:12px;color:var(--text2)">기록 없음</span>`:''}</div>${hasI?`<span style="font-size:12px;color:var(--text2);white-space:nowrap">${fmtHours(dayWorkMins(ds))}</span>`:''}</div>`;
+  }
+  document.getElementById('ws-days').textContent=`${totalDays}일`;
+  document.getElementById('ws-hours').textContent=fmtHours(totalMins);
+  document.getElementById('week-list').innerHTML=html;
+}
+
+function renderYear(){
+  document.getElementById('cal-year-title').textContent=`${calYearNav}년`;
+  const months=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  let totalDays=0,totalMins=0,html='';
+  for(let m=0;m<12;m++){
+    const ym=`${calYearNav}.${pad(m+1)}`;
+    const daySet=new Set(records.filter(r=>r.type==='출근'&&r.date.startsWith(ym)).map(r=>r.date));
+    const mins=Array.from(daySet).reduce((s,d)=>s+dayWorkMins(d),0);
+    totalDays+=daySet.size;totalMins+=mins;
+    html+=`<div class="month-card${daySet.size?' has-data':''}"><div class="mc-name">${months[m]}</div><div class="mc-days">${daySet.size?`${daySet.size}일`:'-'}</div>${daySet.size?`<div class="mc-hours">${fmtHours(mins)}</div>`:''}</div>`;
+  }
+  document.getElementById('ys-days').textContent=`${totalDays}일`;
+  document.getElementById('ys-hours').textContent=fmtHours(totalMins);
+  document.getElementById('year-grid').innerHTML=html;
+}
+
+function getRangeDates(){
+  const now=new Date();let from,to;
+  if(exportRange==='week'){from=getWeekStart(now);to=new Date(from);to.setDate(to.getDate()+6);}
+  else if(exportRange==='month'){from=new Date(now.getFullYear(),now.getMonth(),1);to=new Date(now.getFullYear(),now.getMonth()+1,0);}
+  else if(exportRange==='3month'){to=new Date(now.getFullYear(),now.getMonth()+1,0);from=new Date(now.getFullYear(),now.getMonth()-2,1);}
+  else{from=exportFrom?new Date(exportFrom):now;to=exportTo?new Date(exportTo):now;}
+  return{from,to};
+}
+function getFilteredDays(){
+  const{from,to}=getRangeDates();
+  const days=[],cur=new Date(from);cur.setHours(0,0,0,0);
+  const end=new Date(to);end.setHours(23,59,59,999);
+  while(cur<=end){days.push(fmtDate(new Date(cur)));cur.setDate(cur.getDate()+1);}
+  return days.filter(ds=>dayIn(ds));
+}
+function setRange(r){
+  exportRange=r;
+  ['week','month','3month','custom'].forEach(x=>{document.getElementById('rb-'+x).className='range-btn'+(x===r?' active':'');});
+  document.getElementById('custom-dates').style.display=r==='custom'?'grid':'none';
+  updatePreview();
+}
+function updatePreview(){
+  if(exportRange==='custom'){exportFrom=document.getElementById('date-from').value;exportTo=document.getElementById('date-to').value;}
+  const days=getFilteredDays(),totalMins=days.reduce((s,ds)=>s+dayWorkMins(ds),0);
+  const{from,to}=getRangeDates();
+  document.getElementById('preview-stat').textContent=days.length?`출근일 ${days.length}일 · 실근무 ${fmtHours(totalMins)}`:'해당 기간 기록 없음';
+  document.getElementById('preview-sub').textContent=`${fmtDate(from)} ~ ${fmtDate(to)}`;
+}
+function exportCSV(){
+  const days=getFilteredDays();
+  if(!days.length){showToast('해당 기간에 기록이 없어요');return;}
+  let csv='\uFEFF날짜,요일,출근시간,퇴근시간,점심식사,저녁식사,실근무시간\n';
+  days.forEach(ds=>{
+    const i=dayIn(ds),o=dayOut(ds),m=getMeals(ds);
+    const d=new Date(ds.replace(/\./g,'-'));
+    const dow=['일','월','화','수','목','금','토'][d.getDay()];
+    const work=dayWorkMins(ds),wh=Math.floor(work/60),wm=work%60;
+    csv+=`${ds},${dow},${i?fmtTime24(new Date(i.ts)):'-'},${o?fmtTime24(new Date(o.ts)):'-'},${m.lunch?'O':'X'},${m.dinner?'O':'X'},${wh}시간 ${wm}분\n`;
+  });
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`출퇴근기록_${fmtDate(new Date())}.csv`;a.click();
+  URL.revokeObjectURL(url);showToast('✓ 엑셀 파일 저장됐어요!');
+}
+function exportPDF(){
+  const days=getFilteredDays();
+  if(!days.length){showToast('해당 기간에 기록이 없어요');return;}
+  const{from,to}=getRangeDates();
+  const totalMins=days.reduce((s,ds)=>s+dayWorkMins(ds),0);
+  const wh=Math.floor(totalMins/60),wm=totalMins%60;
+  const rows=days.map(ds=>{
+    const i=dayIn(ds),o=dayOut(ds),m=getMeals(ds);
+    const d=new Date(ds.replace(/\./g,'-'));
+    const dow=['일','월','화','수','목','금','토'][d.getDay()];
+    const work=dayWorkMins(ds),wh2=Math.floor(work/60),wm2=work%60;
+    const mealStr=[m.lunch?'점심':'',m.dinner?'저녁':''].filter(Boolean).join('/')||'-';
+    return `<tr><td style="color:${d.getDay()===0?'#c00':'#333'}">${ds} (${dow})</td><td style="color:#0a6e3f;font-weight:500">${i?fmtTime24(new Date(i.ts)):'-'}</td><td style="color:#993c1d;font-weight:500">${o?fmtTime24(new Date(o.ts)):'-'}</td><td>${mealStr}</td><td style="font-weight:500">${wh2}시간 ${wm2}분</td></tr>`;
+  }).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>출퇴근기록</title><style>body{font-family:-apple-system,sans-serif;padding:32px;color:#222}h1{font-size:20px;margin-bottom:4px}.sub{font-size:13px;color:#888;margin-bottom:20px}.summary{display:flex;gap:24px;margin-bottom:24px;padding:16px;background:#f5f5f5;border-radius:10px}.sum-item{display:flex;flex-direction:column;gap:2px}.sum-label{font-size:11px;color:#888}.sum-val{font-size:18px;font-weight:600}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f0f0f0;padding:10px 12px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #ddd}td{padding:10px 12px;border-bottom:0.5px solid #eee}@media print{body{padding:16px}}</style></head><body><h1>출퇴근 기록</h1><div class="sub">${fmtDate(from)} ~ ${fmtDate(to)} · 출력일 ${fmtDate(new Date())}</div><div class="summary"><div class="sum-item"><span class="sum-label">출근일</span><span class="sum-val">${days.length}일</span></div><div class="sum-item"><span class="sum-label">총 실근무</span><span class="sum-val">${wh}시간 ${wm}분</span></div><div class="sum-item"><span class="sum-label">일평균</span><span class="sum-val">${days.length?Math.round(totalMins/days.length):0}분</span></div></div><table><thead><tr><th>날짜</th><th>출근</th><th>퇴근</th><th>식사</th><th>실근무</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+  const win=window.open('','_blank');win.document.write(html);win.document.close();
+  setTimeout(()=>win.print(),500);showToast('✓ PDF 출력 화면이 열렸어요!');
+}
+
+function updateClock(){
+  const now=new Date();
+  document.getElementById('date-label').textContent=`${fmtDate(now)} (${fmtDay(now)})`;
+  document.getElementById('time-now').textContent=fmtTime(now);
+}
+checkURLAction();
+updateClock();
+setInterval(updateClock,30000);
+renderHome();
+</script>
+</body>
+</html>
