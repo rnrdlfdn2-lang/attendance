@@ -506,20 +506,31 @@ function loadFromSheet(){
       if(d.result==='ok'&&d.records&&d.records.length>0){
         const sheetRecs=d.records
           .filter(r=>r.ts&&r.date&&r.type)
-          .map(r=>({
-            id: new Date(r.ts).getTime()||Date.now(),
-            type: r.type,
-            date: String(r.date),
-            ts: r.ts,
-            originalTs: r.ts,
-            isFieldWork: r.isField==='🚗 외근'
-          }));
+          .map(r=>{
+            // 2026.05.12 09:00:00 형식을 ISO로 변환
+            let tsStr = r.ts;
+            if(tsStr.match(/^\d{4}\.\d{2}\.\d{2}/)){
+              tsStr = tsStr.replace(/^(\d{4})\.(\d{2})\.(\d{2})/, '$1-$2-$3');
+            }
+            const tsDate = new Date(tsStr);
+            const validTs = isNaN(tsDate.getTime()) ? new Date().toISOString() : tsDate.toISOString();
+            return {
+              id: tsDate.getTime() || Date.now(),
+              type: String(r.type),
+              date: String(r.date),
+              ts: validTs,
+              originalTs: validTs,
+              isFieldWork: r.isField === '🚗 외근'
+            };
+          });
         if(sheetRecs.length>0){
           records=sheetRecs;
           localStorage.setItem('att_records_v2',JSON.stringify(records));
           updateTheme();
           renderHome();
           showToast('✅ 구글 시트에서 기록을 복원했어요!');
+        } else {
+          showToast('시트에 저장된 기록이 없어요');
         }
       } else {
         showToast('시트에 저장된 기록이 없어요');
