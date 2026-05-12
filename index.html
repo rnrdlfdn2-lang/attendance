@@ -144,6 +144,9 @@ body.dark .nfc-btn.done {
 /* NFC 스캔 */
 .nfc-scanning { display: none; align-items: center; gap: 8px; color: #4a9eff; font-size: 13px; margin-top: 14px; }
 .nfc-scanning.show { display: flex; }
+.field-btn { background: none; border: 1.5px dashed var(--border2); border-radius: 99px; padding: 7px 20px; font-size: 12px; font-weight: 500; color: var(--text2); font-family: inherit; cursor: pointer; margin-top: 12px; display: flex; align-items: center; gap: 6px; transition: border-color 0.2s, color 0.2s; }
+.field-btn:hover { border-color: #f0a040; color: #f0a040; }
+.field-btn i { font-size: 14px; }
 .pulse { width: 8px; height: 8px; border-radius: 50%; background: #4a9eff; animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.3;transform:scale(0.6)} }
 
@@ -301,6 +304,9 @@ body.dark .nfc-btn.done {
       <div class="nfc-scanning" id="nfc-scanning">
         <div class="pulse"></div>NFC 스캔 중...
       </div>
+      <button class="field-btn" id="field-btn" onclick="fieldRecord()">
+        <i class="ti ti-map-pin"></i> 외근 기록
+      </button>
     </div>
     <div class="status-bar">
       <div class="sdot" id="sdot"></div>
@@ -551,7 +557,17 @@ async function startNFC(){
   }catch(e){document.getElementById('nfc-scanning').classList.remove('show');showToast('NFC 권한이 필요해요. 브라우저 설정을 확인하세요');}
 }
 
-function doRecord(){
+function fieldRecord(){
+  const recs=dayRecs(todayStr());
+  const hasIn=recs.some(r=>r.type==='출근'),hasOut=recs.some(r=>r.type==='퇴근');
+  if(hasOut){showToast('오늘 출퇴근이 모두 기록됐어요');return;}
+  const type=hasIn?'퇴근':'출근';
+  vibrate(type);
+  const now=new Date();
+  records.unshift({id:Date.now(),type,date:fmtDate(now),ts:now.toISOString(),originalTs:now.toISOString(),isFieldWork:true});
+  save();updateTheme();renderHome();
+  showToast(type==='출근'?'🚗 외근 출근 완료!':'🚗 외근 퇴근 완료! 수고하셨어요 🎉');
+}
   const recs=dayRecs(todayStr());
   const hasIn=recs.some(r=>r.type==='출근'),hasOut=recs.some(r=>r.type==='퇴근');
   if(hasOut)return;
@@ -654,16 +670,21 @@ function renderHome(){
     btn.className='nfc-btn done';icon.className='ti ti-check';lbl.textContent='오늘 완료!';hint.textContent='수고하셨어요 🎉';
     ring.className='base-ring done';waves.forEach(w=>w.className='wave hide');
     btn.onclick=null;
+    document.getElementById('field-btn').style.display='none';
   }else if(hasIn){
     dot.className='sdot in';st.innerHTML=`<strong>근무 중</strong> · 출근 ${fmtTime(new Date(inRec.ts))}`;
     btn.className='nfc-btn out';icon.className='ti ti-logout';lbl.textContent='퇴근하기';hint.textContent='스티커에 태그하세요';
     ring.className='base-ring out';waves.forEach(w=>w.className='wave out');
     btn.onclick=startNFC;
+    document.getElementById('field-btn').style.display='flex';
+    document.getElementById('field-btn').innerHTML='<i class="ti ti-map-pin"></i> 외근 퇴근';
   }else{
     dot.className='sdot';st.textContent='아직 출근 기록이 없어요';
     btn.className='nfc-btn';icon.className='ti ti-login';lbl.textContent='출근하기';hint.textContent='스티커에 태그하세요';
     ring.className='base-ring';waves.forEach(w=>w.className='wave');
     btn.onclick=startNFC;
+    document.getElementById('field-btn').style.display='flex';
+    document.getElementById('field-btn').innerHTML='<i class="ti ti-map-pin"></i> 외근 출근';
   }
   const m=getMeals(ds);
   document.getElementById('meal-lunch').className='meal-btn'+(m.lunch?' checked':'');
@@ -682,7 +703,7 @@ function renderHome(){
   if(m.dinner)mealItems.push('저녁식사 (-1h)');
   if(!todayAll.length&&!mealItems.length){list.innerHTML='<div class="empty"><i class="ti ti-nfc"></i>NFC 스티커를 태그해서<br>첫 기록을 남겨보세요</div>';return;}
   list.innerHTML=[
-    ...todayAll.map(r=>`<div class="rec"><div class="rec-l"><span class="badge ${r.type==='출근'?'bi':'bo'}">${r.type}</span><span class="rec-time">${fmtTime(new Date(r.ts))}</span></div><div class="rec-actions"><button class="icon-btn" onclick="openEditModal(${r.id})"><i class="ti ti-pencil"></i></button><button class="icon-btn" onclick="delRec(${r.id})"><i class="ti ti-x"></i></button></div></div>`),
+    ...todayAll.map(r=>`<div class="rec"><div class="rec-l"><span class="badge ${r.type==='출근'?'bi':'bo'}">${r.type}</span>${r.isFieldWork?'<span class="badge" style="background:rgba(240,160,64,0.12);color:#f0a040;">외근</span>':''}<span class="rec-time">${fmtTime(new Date(r.ts))}</span></div><div class="rec-actions"><button class="icon-btn" onclick="openEditModal(${r.id})"><i class="ti ti-pencil"></i></button><button class="icon-btn" onclick="delRec(${r.id})"><i class="ti ti-x"></i></button></div></div>`),
     ...mealItems.map(label=>`<div class="rec"><div class="rec-l"><span class="badge bm">${label}</span></div><span style="font-size:12px;color:var(--text2)">1시간 차감</span></div>`)
   ].join('');
 }
