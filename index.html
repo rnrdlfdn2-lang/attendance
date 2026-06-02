@@ -470,7 +470,7 @@ function getWeekStart(d){let dt=new Date(d);dt.setHours(0,0,0,0);dt.setDate(dt.g
 function dayRecs(ds){return records.filter(r=>r.date===ds);}
 function dayIn(ds){return dayRecs(ds).find(r=>r.type==='출근');}
 function dayOut(ds){return dayRecs(ds).find(r=>r.type==='퇴근');}
-function getMeals(ds){return meals[ds]||{lunch:false,dinner:false};}
+function getMeals(ds){return meals[ds]||{lunch:true,dinner:false};}
 function mealDeduct(ds){const m=getMeals(ds);return(m.lunch?60:0)+(m.dinner?60:0);}
 function dayRawMins(ds){const i=dayIn(ds),o=dayOut(ds);if(!i)return 0;const end=o?new Date(o.ts):new Date();return Math.round((end-new Date(i.ts))/60000);}
 function dayWorkMins(ds){return Math.max(0,dayRawMins(ds)-mealDeduct(ds));}
@@ -628,7 +628,7 @@ function checkURLAction(){
 }
 
 function toggleMeal(ds,type){
-  if(!meals[ds])meals[ds]={lunch:false,dinner:false};
+  if(!meals[ds])meals[ds]={lunch:true,dinner:false};
   meals[ds][type]=!meals[ds][type];saveMeals();
   if(ds===todayStr())renderHome();
   if(currentTab==='cal'){renderMonth();if(selectedDay===ds)showDayDetail(ds);}
