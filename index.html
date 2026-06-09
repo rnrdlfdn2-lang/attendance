@@ -789,13 +789,14 @@ function saveTime(){
   // 새 기록 추가 모드
   if(window._addingRecord){
     const {ds, type} = window._addingRecord;
-    // 날짜 입력값 가져오기
+    // 날짜 입력값 가져오기 (타임스탬프용)
     const dateInput = document.getElementById('input-date');
     const selectedDate = dateInput ? dateInput.value : ds.replace(/\./g,'-');
-    const recordDs = selectedDate.replace(/-/g,'.');
+    // ts는 실제 입력한 날짜+시간으로
     const d = new Date(`${selectedDate}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
-    records.unshift({id:Date.now(), type, date:recordDs, ts:d.toISOString(), originalTs:d.toISOString()});
-    save(); closeModalDirect(); showToast(`✓ ${recordDs} ${type} 기록이 추가됐어요`);
+    // date(날짜 키)는 항상 원래 날짜(ds)로 고정 → 달력에서 해당 날짜에 표시
+    records.unshift({id:Date.now(), type, date:ds, ts:d.toISOString(), originalTs:d.toISOString()});
+    save(); closeModalDirect(); showToast(`✓ ${ds} ${type} 기록이 추가됐어요`);
     updateTheme(); renderHome();
     if(currentTab==='cal'){renderMonth(); if(selectedDay) showDayDetail(selectedDay);}
     return;
