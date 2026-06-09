@@ -733,15 +733,42 @@ function openEditModal(id){
 }
 function closeModal(e){if(e.target===document.getElementById('modal'))closeModalDirect();}
 function closeModalDirect(){document.getElementById('modal').classList.remove('show');editingId=null;}
+function addRecordToDate(ds, type){
+  // 시간 입력 모달 열기
+  editingId = null;
+  document.getElementById('modal-title').textContent = ds + ' ' + type + ' 추가';
+  document.getElementById('modal-sub').textContent = '시간을 입력해주세요';
+  document.getElementById('input-h').value = type==='출근' ? 9 : 18;
+  document.getElementById('input-m').value = 0;
+  document.getElementById('modal').classList.add('show');
+  // 저장 시 해당 날짜로 추가
+  window._addingRecord = { ds, type };
+}
+
 function saveTime(){
-  if(editingId===null)return;
-  const h=parseInt(document.getElementById('input-h').value),m=parseInt(document.getElementById('input-m').value);
+  const h=parseInt(document.getElementById('input-h').value);
+  const m=parseInt(document.getElementById('input-m').value);
   if(isNaN(h)||isNaN(m)||h<0||h>23||m<0||m>59){showToast('올바른 시간을 입력해주세요');return;}
+
+  // 새 기록 추가 모드
+  if(window._addingRecord){
+    const {ds, type} = window._addingRecord;
+    const parts = ds.split('.');
+    const d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]), h, m, 0);
+    records.unshift({id:Date.now(), type, date:ds, ts:d.toISOString(), originalTs:d.toISOString()});
+    save(); closeModalDirect(); showToast(`✓ ${ds} ${type} 기록이 추가됐어요`);
+    updateTheme(); renderHome();
+    if(currentTab==='cal'){renderMonth(); if(selectedDay) showDayDetail(selectedDay);}
+    window._addingRecord = null;
+    return;
+  }
+
+  // 기존 수정 모드
+  if(editingId===null)return;
   const rec=records.find(r=>r.id===editingId);if(!rec)return;
   const d=new Date(rec.ts);d.setHours(h);d.setMinutes(m);d.setSeconds(0);
   rec.ts=d.toISOString();
-  save();
-  closeModalDirect();showToast('✓ 시간이 수정됐어요');
+  save();closeModalDirect();showToast('✓ 시간이 수정됐어요');
   updateTheme();renderHome();
   if(currentTab==='cal'){renderMonth();if(selectedDay)showDayDetail(selectedDay);}
 }
@@ -852,14 +879,21 @@ function showDayDetail(ds){
   const i=dayIn(ds),o=dayOut(ds),m=getMeals(ds);
   const deduct=mealDeduct(ds),workMins=Math.max(0,dayRawMins(ds)-deduct);
   let html=`<div class="day-detail"><div class="dd-title"><i class="ti ti-calendar-event" style="font-size:15px;vertical-align:-2px;margin-right:5px"></i>${ds}</div>`;
-  if(!i&&!o)html+=`<div style="font-size:13px;color:var(--text2);padding:6px 0">출퇴근 기록이 없어요</div>`;
-  else{
-    if(i)html+=`<div class="dd-row"><span class="dd-label"><span class="badge bi">출근</span></span><span class="dd-val">${fmtTime(new Date(i.ts))}<button class="icon-btn" onclick="openEditModal(${i.id})" style="font-size:14px"><i class="ti ti-pencil"></i></button><button class="icon-btn" onclick="delRec(${i.id})" style="font-size:14px;color:#e05252"><i class="ti ti-x"></i></button></span></div>`;
-    if(o)html+=`<div class="dd-row"><span class="dd-label"><span class="badge bo">퇴근</span></span><span class="dd-val">${fmtTime(new Date(o.ts))}<button class="icon-btn" onclick="openEditModal(${o.id})" style="font-size:14px"><i class="ti ti-pencil"></i></button><button class="icon-btn" onclick="delRec(${o.id})" style="font-size:14px;color:#e05252"><i class="ti ti-x"></i></button></span></div>`;
+  if(!i&&!o){
+    html+=`<div style="font-size:13px;color:var(--text2);padding:6px 0 10px">출퇴근 기록이 없어요</div>`;
+    html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px;">
+      <button onclick="addRecordToDate('${ds}','출근')" style="border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;background:rgba(29,185,122,0.12);color:#1db97a;">+ 출근 추가</button>
+      <button onclick="addRecordToDate('${ds}','퇴근')" style="border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;background:rgba(224,82,82,0.12);color:#e05252;">+ 퇴근 추가</button>
+    </div>`;
+  } else {
+    if(i) html+=`<div class="dd-row"><span class="dd-label"><span class="badge bi">출근</span></span><span class="dd-val">${fmtTime(new Date(i.ts))}<button class="icon-btn" onclick="openEditModal(${i.id})" style="font-size:14px"><i class="ti ti-pencil"></i></button><button class="icon-btn" onclick="delRec(${i.id})" style="font-size:14px;color:#e05252"><i class="ti ti-x"></i></button></span></div>`;
+    if(!i) html+=`<button onclick="addRecordToDate('${ds}','출근')" style="width:100%;border:none;border-radius:10px;padding:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;background:rgba(29,185,122,0.12);color:#1db97a;margin-bottom:4px;">+ 출근 추가</button>`;
+    if(o) html+=`<div class="dd-row"><span class="dd-label"><span class="badge bo">퇴근</span></span><span class="dd-val">${fmtTime(new Date(o.ts))}<button class="icon-btn" onclick="openEditModal(${o.id})" style="font-size:14px"><i class="ti ti-pencil"></i></button><button class="icon-btn" onclick="delRec(${o.id})" style="font-size:14px;color:#e05252"><i class="ti ti-x"></i></button></span></div>`;
+    if(!o) html+=`<button onclick="addRecordToDate('${ds}','퇴근')" style="width:100%;border:none;border-radius:10px;padding:8px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;background:rgba(224,82,82,0.12);color:#e05252;margin-bottom:4px;">+ 퇴근 추가</button>`;
   }
   html+=`<div class="dd-row"><span class="dd-label"><i class="ti ti-soup" style="font-size:15px"></i> 점심식사</span><button class="dd-meal-toggle ${m.lunch?'toggle-on':'toggle-off'}" onclick="toggleMeal('${ds}','lunch')">${m.lunch?'차감 중 · 취소':'+ 추가 (-1h)'}</button></div>
   <div class="dd-row"><span class="dd-label"><i class="ti ti-meat" style="font-size:15px"></i> 저녁식사</span><button class="dd-meal-toggle ${m.dinner?'toggle-on':'toggle-off'}" onclick="toggleMeal('${ds}','dinner')">${m.dinner?'차감 중 · 취소':'+ 추가 (-1h)'}</button></div>`;
-  if(i)html+=`<div class="work-summary"><span class="ws-label">실 근무시간${deduct?` (식사 ${fmtHours(deduct)} 제외)`:''}</span><span class="ws-val">${fmtHours(workMins)}</span></div>`;
+  if(i||o) html+=`<div class="work-summary"><span class="ws-label">실 근무시간${deduct?` (식사 ${fmtHours(deduct)} 제외)`:''}</span><span class="ws-val">${fmtHours(workMins)}</span></div>`;
   html+=`</div>`;
   document.getElementById('day-detail').innerHTML=html;
 }
