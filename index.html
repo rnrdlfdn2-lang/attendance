@@ -617,11 +617,11 @@ function doRecord(){
   const now=new Date();
   const todayDs=fmtDate(now);
 
-  // 오늘 날짜 기준
   let targetDs=todayDs;
   let recs=dayRecs(todayDs);
   let hasIn=recs.some(r=>r.type==='출근');
   let hasOut=recs.some(r=>r.type==='퇴근');
+  let isOvernight=false;
 
   // 오늘 출근이 없고 어제 출근이 있으면 → 새벽 퇴근
   if(!hasIn && !hasOut){
@@ -636,16 +636,29 @@ function doRecord(){
       recs=yesterdayRecs;
       hasIn=true;
       hasOut=false;
-      showToast('🌙 어제 출근 기록에 퇴근을 추가해요');
+      isOvernight=true;
     }
   }
 
   if(hasOut) return;
   const type=hasIn?'퇴근':'출근';
   vibrate(type);
-  records.unshift({id:Date.now(),type,date:targetDs,ts:now.toISOString(),originalTs:now.toISOString()});
+
+  // 새벽 퇴근일 경우 ts의 날짜도 어제로 맞춰서 저장
+  let recordTs=now.toISOString();
+  if(isOvernight && type==='퇴근'){
+    const tsDate=new Date(now);
+    // 날짜를 targetDs(어제)로 맞추되 시간은 유지
+    const parts=targetDs.split('.');
+    tsDate.setFullYear(parseInt(parts[0]));
+    tsDate.setMonth(parseInt(parts[1])-1);
+    tsDate.setDate(parseInt(parts[2]));
+    recordTs=tsDate.toISOString();
+  }
+
+  records.unshift({id:Date.now(),type,date:targetDs,ts:recordTs,originalTs:now.toISOString()});
   save();updateTheme();renderHome();
-  showToast(type==='출근'?'✅ 출근 완료!':'✅ 퇴근 완료! 수고하셨어요 🎉');
+  showToast(isOvernight?'🌙 어제 기록에 퇴근 추가됐어요!':(type==='출근'?'✅ 출근 완료!':'✅ 퇴근 완료! 수고하셨어요 🎉'));
   document.getElementById('btn-hint').textContent='스티커에 태그하세요';
   window._nfcTriggered=false;
 }
