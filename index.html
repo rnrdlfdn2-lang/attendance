@@ -617,48 +617,61 @@ function doRecord(){
   const now=new Date();
   const todayDs=fmtDate(now);
 
+  // 오늘 기록 먼저 확인
   let targetDs=todayDs;
   let recs=dayRecs(todayDs);
   let hasIn=recs.some(r=>r.type==='출근');
   let hasOut=recs.some(r=>r.type==='퇴근');
-  let isOvernight=false;
 
-  // 오늘 출근이 없고 어제 출근이 있으면 → 새벽 퇴근
-  if(!hasIn && !hasOut){
-    const yesterday=new Date(now);
-    yesterday.setDate(yesterday.getDate()-1);
-    const yesterdayDs=fmtDate(yesterday);
-    const yesterdayRecs=dayRecs(yesterdayDs);
-    const yesterdayIn=yesterdayRecs.some(r=>r.type==='출근');
-    const yesterdayOut=yesterdayRecs.some(r=>r.type==='퇴근');
-    if(yesterdayIn && !yesterdayOut){
-      targetDs=yesterdayDs;
-      recs=yesterdayRecs;
-      hasIn=true;
-      hasOut=false;
-      isOvernight=true;
+  // 오늘 출근이 없으면 → 최근 7일 안에 퇴근 안 한 출근 찾기
+  if(!hasIn){
+    for(let i=1; i<=7; i++){
+      const prevDate=new Date(now);
+      prevDate.setDate(prevDate.getDate()-i);
+      const prevDs=fmtDate(prevDate);
+      const prevRecs=dayRecs(prevDs);
+      const prevIn=prevRecs.some(r=>r.type==='출근');
+      const prevOut=prevRecs.some(r=>r.type==='퇴근');
+      if(prevIn && !prevOut){
+        // 퇴근 안 된 출근 발견 → 여기에 퇴근 찍기
+        targetDs=prevDs;
+        recs=prevRecs;
+        hasIn=true;
+        hasOut=false;
+        break;
+      }
+      // 출근도 퇴근도 없으면 더 이전 날로
+      if(!prevIn && !prevOut) continue;
+      // 출퇴근 다 있으면 중단
+      break;
     }
   }
 
-  if(hasOut) return;
+  if(hasOut && targetDs===todayDs){
+    showToast('오늘 출퇴근이 모두 기록됐어요');
+    return;
+  }
+
   const type=hasIn?'퇴근':'출근';
   vibrate(type);
 
-  // 새벽 퇴근일 경우 ts의 날짜도 어제로 맞춰서 저장
-  let recordTs=now.toISOString();
-  if(isOvernight && type==='퇴근'){
-    const tsDate=new Date(now);
-    // 날짜를 targetDs(어제)로 맞추되 시간은 유지
-    const parts=targetDs.split('.');
-    tsDate.setFullYear(parseInt(parts[0]));
-    tsDate.setMonth(parseInt(parts[1])-1);
-    tsDate.setDate(parseInt(parts[2]));
-    recordTs=tsDate.toISOString();
-  }
+  // 퇴근 시간은 실제 지금 시각 그대로, 날짜만 targetDs로
+  const recordDate = type==='퇴근' ? targetDs : todayDs;
 
-  records.unshift({id:Date.now(),type,date:targetDs,ts:recordTs,originalTs:now.toISOString()});
+  records.unshift({
+    id:Date.now(),
+    type,
+    date:recordDate,
+    ts:now.toISOString(),
+    originalTs:now.toISOString()
+  });
   save();updateTheme();renderHome();
-  showToast(isOvernight?'🌙 어제 기록에 퇴근 추가됐어요!':(type==='출근'?'✅ 출근 완료!':'✅ 퇴근 완료! 수고하셨어요 🎉'));
+
+  if(type==='퇴근' && targetDs!==todayDs){
+    showToast(`🌙 ${targetDs} 기록에 퇴근 추가됐어요!`);
+  } else {
+    showToast(type==='출근'?'✅ 출근 완료!':'✅ 퇴근 완료! 수고하셨어요 🎉');
+  }
   document.getElementById('btn-hint').textContent='스티커에 태그하세요';
   window._nfcTriggered=false;
 }
