@@ -582,28 +582,69 @@ async function startNFC(){
 }
 
 function fieldRecord(){
-  const recs=dayRecs(todayStr());
-  const hasIn=recs.some(r=>r.type==='출근'),hasOut=recs.some(r=>r.type==='퇴근');
+  const now=new Date();
+  const todayDs=fmtDate(now);
+
+  let targetDs=todayDs;
+  let recs=dayRecs(todayDs);
+  let hasIn=recs.some(r=>r.type==='출근');
+  let hasOut=recs.some(r=>r.type==='퇴근');
+
+  if(!hasIn && !hasOut){
+    const yesterday=new Date(now);
+    yesterday.setDate(yesterday.getDate()-1);
+    const yesterdayDs=fmtDate(yesterday);
+    const yesterdayRecs=dayRecs(yesterdayDs);
+    const yesterdayIn=yesterdayRecs.some(r=>r.type==='출근');
+    const yesterdayOut=yesterdayRecs.some(r=>r.type==='퇴근');
+    if(yesterdayIn && !yesterdayOut){
+      targetDs=yesterdayDs;
+      recs=yesterdayRecs;
+      hasIn=true;
+      hasOut=false;
+    }
+  }
+
   if(hasOut){showToast('오늘 출퇴근이 모두 기록됐어요');return;}
   const type=hasIn?'퇴근':'출근';
   vibrate(type);
-  const now=new Date();
-  records.unshift({id:Date.now(),type,date:fmtDate(now),ts:now.toISOString(),originalTs:now.toISOString(),isFieldWork:true});
+  records.unshift({id:Date.now(),type,date:targetDs,ts:now.toISOString(),originalTs:now.toISOString(),isFieldWork:true});
   save();updateTheme();renderHome();
   showToast(type==='출근'?'🚗 외근 출근 완료!':'🚗 외근 퇴근 완료! 수고하셨어요 🎉');
 }
 
 function doRecord(){
-  const recs=dayRecs(todayStr());
-  const hasIn=recs.some(r=>r.type==='출근'),hasOut=recs.some(r=>r.type==='퇴근');
-  if(hasOut)return;
+  const now=new Date();
+  const todayDs=fmtDate(now);
+
+  // 오늘 날짜 기준
+  let targetDs=todayDs;
+  let recs=dayRecs(todayDs);
+  let hasIn=recs.some(r=>r.type==='출근');
+  let hasOut=recs.some(r=>r.type==='퇴근');
+
+  // 오늘 출근이 없고 어제 출근이 있으면 → 새벽 퇴근
+  if(!hasIn && !hasOut){
+    const yesterday=new Date(now);
+    yesterday.setDate(yesterday.getDate()-1);
+    const yesterdayDs=fmtDate(yesterday);
+    const yesterdayRecs=dayRecs(yesterdayDs);
+    const yesterdayIn=yesterdayRecs.some(r=>r.type==='출근');
+    const yesterdayOut=yesterdayRecs.some(r=>r.type==='퇴근');
+    if(yesterdayIn && !yesterdayOut){
+      targetDs=yesterdayDs;
+      recs=yesterdayRecs;
+      hasIn=true;
+      hasOut=false;
+      showToast('🌙 어제 출근 기록에 퇴근을 추가해요');
+    }
+  }
+
+  if(hasOut) return;
   const type=hasIn?'퇴근':'출근';
   vibrate(type);
-  const now=new Date();
-  records.unshift({id:Date.now(),type,date:fmtDate(now),ts:now.toISOString(),originalTs:now.toISOString()});
-  save();
-  updateTheme();
-  renderHome();
+  records.unshift({id:Date.now(),type,date:targetDs,ts:now.toISOString(),originalTs:now.toISOString()});
+  save();updateTheme();renderHome();
   showToast(type==='출근'?'✅ 출근 완료!':'✅ 퇴근 완료! 수고하셨어요 🎉');
   document.getElementById('btn-hint').textContent='스티커에 태그하세요';
   window._nfcTriggered=false;
