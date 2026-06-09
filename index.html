@@ -472,7 +472,20 @@ function dayIn(ds){return dayRecs(ds).find(r=>r.type==='출근');}
 function dayOut(ds){return dayRecs(ds).find(r=>r.type==='퇴근');}
 function getMeals(ds){return meals[ds]||{lunch:true,dinner:false};}
 function mealDeduct(ds){const m=getMeals(ds);return(m.lunch?60:0)+(m.dinner?60:0);}
-function dayRawMins(ds){const i=dayIn(ds),o=dayOut(ds);if(!i)return 0;const end=o?new Date(o.ts):new Date();return Math.round((end-new Date(i.ts))/60000);}
+function dayRawMins(ds){
+  const i=dayIn(ds),o=dayOut(ds);
+  if(!i) return 0;
+  const inTime=new Date(i.ts);
+  let outTime;
+  if(o){
+    outTime=new Date(o.ts);
+    // 퇴근이 출근보다 이전이면 (날짜 입력 오류 방지) 다음날로 보정
+    if(outTime<inTime) outTime=new Date(outTime.getTime()+24*60*60*1000);
+  } else {
+    outTime=new Date();
+  }
+  return Math.max(0,Math.round((outTime-inTime)/60000));
+}
 function dayWorkMins(ds){return Math.max(0,dayRawMins(ds)-mealDeduct(ds));}
 function fmtHours(mins){if(!mins)return'0h';const h=Math.floor(mins/60),m=mins%60;return m?`${h}h ${m}m`:`${h}h`;}
 const SHEET_URL='https://script.google.com/a/macros/spaceadd.com/s/AKfycbwrZhQdfKRAt_sWLnuogPGBTO2WdqMdwZz8Akdue9X189rfFRA0edMoVHf7wdFwQd1S/exec';
@@ -734,15 +747,38 @@ function openEditModal(id){
 function closeModal(e){if(e.target===document.getElementById('modal'))closeModalDirect();}
 function closeModalDirect(){document.getElementById('modal').classList.remove('show');editingId=null;}
 function addRecordToDate(ds, type){
-  // 시간 입력 모달 열기
   editingId = null;
+  window._addingRecord = { ds, type };
+
+  // 날짜 기본값 설정
+  const parts = ds.split('.');
+  const defaultDate = `${parts[0]}-${parts[1]}-${parts[2]}`;
+
   document.getElementById('modal-title').textContent = ds + ' ' + type + ' 추가';
-  document.getElementById('modal-sub').textContent = '시간을 입력해주세요';
+  document.getElementById('modal-sub').textContent = '날짜와 시간을 입력해주세요';
   document.getElementById('input-h').value = type==='출근' ? 9 : 18;
   document.getElementById('input-m').value = 0;
+
+  // 날짜 입력 필드 추가
+  let dateRow = document.getElementById('modal-date-row');
+  if(!dateRow){
+    dateRow = document.createElement('div');
+    dateRow.id = 'modal-date-row';
+    dateRow.style.cssText = 'margin-bottom:1rem;';
+    dateRow.innerHTML = `<label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">날짜</label><input type="date" id="input-date" style="width:100%;border:0.5px solid var(--border2);border-radius:10px;padding:10px;font-size:15px;font-family:inherit;color:var(--text);background:var(--bg3);outline:none;">`;
+    document.querySelector('.time-input-row').before(dateRow);
+  }
+  document.getElementById('input-date').value = defaultDate;
   document.getElementById('modal').classList.add('show');
-  // 저장 시 해당 날짜로 추가
-  window._addingRecord = { ds, type };
+}
+
+function closeModalDirect(){
+  document.getElementById('modal').classList.remove('show');
+  editingId=null;
+  window._addingRecord=null;
+  // 날짜 입력 필드 제거
+  const dateRow=document.getElementById('modal-date-row');
+  if(dateRow) dateRow.remove();
 }
 
 function saveTime(){
@@ -753,13 +789,15 @@ function saveTime(){
   // 새 기록 추가 모드
   if(window._addingRecord){
     const {ds, type} = window._addingRecord;
-    const parts = ds.split('.');
-    const d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]), h, m, 0);
-    records.unshift({id:Date.now(), type, date:ds, ts:d.toISOString(), originalTs:d.toISOString()});
-    save(); closeModalDirect(); showToast(`✓ ${ds} ${type} 기록이 추가됐어요`);
+    // 날짜 입력값 가져오기
+    const dateInput = document.getElementById('input-date');
+    const selectedDate = dateInput ? dateInput.value : ds.replace(/\./g,'-');
+    const recordDs = selectedDate.replace(/-/g,'.');
+    const d = new Date(`${selectedDate}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
+    records.unshift({id:Date.now(), type, date:recordDs, ts:d.toISOString(), originalTs:d.toISOString()});
+    save(); closeModalDirect(); showToast(`✓ ${recordDs} ${type} 기록이 추가됐어요`);
     updateTheme(); renderHome();
     if(currentTab==='cal'){renderMonth(); if(selectedDay) showDayDetail(selectedDay);}
-    window._addingRecord = null;
     return;
   }
 
